@@ -35,6 +35,7 @@ class Layer(object):
     # Methods
         _call(inputs): Defines computation graph of layer
             (i.e. takes input, returns output)
+            由继承类进行定义，描述网络从输入到输出的计算逻辑
         __call__(inputs): Wrapper for _call()
         _log_vars(): Log all variables
     """

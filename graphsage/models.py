@@ -53,9 +53,13 @@ class Model(object):
             self._build()
 
         # Build sequential layer model
+        # 这里activations更应该写成hiddens，是从输入开始，每一层的结果
         self.activations.append(self.inputs)
         for layer in self.layers:
-            hidden = layer(self.activations[-1])
+            # 将上一层的输出作为下一层的输入，然后添加到activations中
+            # 在派生模型中定义layers中的每一层，每一层都是Layer的派生类的实例
+            # 实例调用__call__方法，即将计算输入得到输出的过程
+            hidden = layer(self.activations[-1]) 
             self.activations.append(hidden)
         self.outputs = self.activations[-1]
 
@@ -177,6 +181,7 @@ class GeneralizedModel(Model):
 
 # SAGEInfo is a namedtuple that specifies the parameters 
 # of the recursive GraphSAGE layers
+# 啥？
 SAGEInfo = namedtuple("SAGEInfo",
     ['layer_name', # name of the layer (to get feature embedding etc.)
      'neigh_sampler', # callable neigh_sampler constructor
@@ -222,11 +227,13 @@ class SampleAndAggregate(GeneralizedModel):
             raise Exception("Unknown aggregator: ", self.aggregator_cls)
 
         # get info from placeholders...
+        # 两个inputs分别是什么？
         self.inputs1 = placeholders["batch1"]
         self.inputs2 = placeholders["batch2"]
         self.model_size = model_size
         self.adj_info = adj
         if identity_dim > 0:
+            # identity feature 是啥？
            self.embeds = tf.get_variable("node_embeddings", [adj.get_shape().as_list()[0], identity_dim])
         else:
            self.embeds = None
@@ -263,10 +270,12 @@ class SampleAndAggregate(GeneralizedModel):
             batch_size = self.batch_size
         samples = [inputs]
         # size of convolution support at each layer per node
+        # support size是啥？
         support_size = 1
         support_sizes = [support_size]
         for k in range(len(layer_infos)):
             t = len(layer_infos) - k - 1
+            # layer_info具体是个啥？
             support_size *= layer_infos[t].num_samples
             sampler = layer_infos[t].neigh_sampler
             node = sampler((samples[k], layer_infos[t].num_samples))
@@ -282,11 +291,16 @@ class SampleAndAggregate(GeneralizedModel):
         Args:
             samples: a list of samples of variable hops away for convolving at each layer of the
                 network. Length is the number of layers + 1. Each is a vector of node indices.
+            每一层采样的邻居ids
             input_features: the input features for each sample of various hops away.
+
             dims: a list of dimensions of the hidden representations from the input layer to the
                 final layer. Length is the number of layers + 1.
+            每一个隐层的维度
             num_samples: list of number of samples for each layer.
+            每一层采样的节点数量？
             support_sizes: the number of nodes to gather information from for each layer.
+            每一层聚合邻居节点的数量
             batch_size: the number of inputs (different for batch inputs and negative samples).
         Returns:
             The hidden representation at the final layer for all nodes in batch
@@ -305,7 +319,7 @@ class SampleAndAggregate(GeneralizedModel):
                 dim_mult = 2 if concat and (layer != 0) else 1
                 # aggregator at current layer
                 if layer == len(num_samples) - 1:
-                    aggregator = self.aggregator_cls(dim_mult*dims[layer], dims[layer+1], act=lambda x : x,
+                    aggregator = self.aggregator_cls(dim_mult*dims[layer], dims[layer+1], act=lambda x : x, # 最后一层没有activation？
                             dropout=self.placeholders['dropout'], 
                             name=name, concat=concat, model_size=model_size)
                 else:
