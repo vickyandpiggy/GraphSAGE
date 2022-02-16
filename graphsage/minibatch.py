@@ -212,6 +212,7 @@ class NodeMinibatchIterator(object):
         self.no_train_nodes_set = set(self.val_nodes + self.test_nodes)
         self.train_nodes = set(G.nodes()).difference(self.no_train_nodes_set)
         # don't train on nodes that only have edges to test set
+        # 为啥？
         self.train_nodes = [n for n in self.train_nodes if self.deg[id2idx[n]] > 0]
 
     def _make_label_vec(self, node):

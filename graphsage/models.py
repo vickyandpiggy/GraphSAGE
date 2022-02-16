@@ -181,7 +181,7 @@ class GeneralizedModel(Model):
 
 # SAGEInfo is a namedtuple that specifies the parameters 
 # of the recursive GraphSAGE layers
-# 啥？
+# layer_infos
 SAGEInfo = namedtuple("SAGEInfo",
     ['layer_name', # name of the layer (to get feature embedding etc.)
      'neigh_sampler', # callable neigh_sampler constructor
@@ -270,16 +270,16 @@ class SampleAndAggregate(GeneralizedModel):
             batch_size = self.batch_size
         samples = [inputs]
         # size of convolution support at each layer per node
-        # support size是啥？
+        # support size是每一层聚合邻居的数量
         support_size = 1
         support_sizes = [support_size]
         for k in range(len(layer_infos)):
             t = len(layer_infos) - k - 1
-            # layer_info具体是个啥？
-            support_size *= layer_infos[t].num_samples
+            # layer_info是GNN信息的命名元组
+            support_size *= layer_infos[t].num_samples # support_size连乘：每跳一个hop涉及邻居翻采样倍
             sampler = layer_infos[t].neigh_sampler
             node = sampler((samples[k], layer_infos[t].num_samples))
-            samples.append(tf.reshape(node, [support_size * batch_size,]))
+            samples.append(tf.reshape(node, [support_size * batch_size,])) # batch_size是训练的节点数量
             support_sizes.append(support_size)
         return samples, support_sizes
 
@@ -310,6 +310,7 @@ class SampleAndAggregate(GeneralizedModel):
             batch_size = self.batch_size
 
         # length: number of layers + 1
+        # 这里为何没有体现batch size？
         hidden = [tf.nn.embedding_lookup(input_features, node_samples) for node_samples in samples]
         new_agg = aggregators is None
         if new_agg:
@@ -334,7 +335,7 @@ class SampleAndAggregate(GeneralizedModel):
             # as layer increases, the number of support nodes needed decreases
             for hop in range(len(num_samples) - layer):
                 dim_mult = 2 if concat and (layer != 0) else 1
-                neigh_dims = [batch_size * support_sizes[hop], 
+                neigh_dims = [batch_size * support_sizes[hop], # 为什么是这个顺序？
                               num_samples[len(num_samples) - hop - 1], 
                               dim_mult*dims[layer]]
                 h = aggregator((hidden[hop],
@@ -344,16 +345,18 @@ class SampleAndAggregate(GeneralizedModel):
         return hidden[0], aggregators
 
     def _build(self):
+        # batch1和batch2的区别是？
         labels = tf.reshape(
                 tf.cast(self.placeholders['batch2'], dtype=tf.int64),
                 [self.batch_size, 1])
+        # 似乎不止是负例，正负例一起被采样了？
         self.neg_samples, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
             true_classes=labels,
             num_true=1,
             num_sampled=FLAGS.neg_sample_size,
-            unique=False,
-            range_max=len(self.degrees),
-            distortion=0.75,
+            unique=False, # 有重
+            range_max=len(self.degrees), # 从所有邻居中采样
+            distortion=0.75, # 概率分布扭曲
             unigrams=self.degrees.tolist()))
 
            

@@ -18,9 +18,9 @@ class SupervisedGraphsage(models.SampleAndAggregate):
         '''
         Args:
             - placeholders: Stanford TensorFlow placeholder object.
-            - features: Numpy array with node features.
-            - adj: Numpy array with adjacency lists (padded with random re-samples)
-            - degrees: Numpy array with node degrees. 
+            - features: Numpy array with node features. (节点数量+1, 特征长度)
+            - adj: Numpy array with adjacency lists (padded with random re-samples) (节点数量+1, max_degree)
+            - degrees: Numpy array with node degrees. (节点数量,)
             - layer_infos: List of SAGEInfo namedtuples that describe the parameters of all 
                    the recursive layers. See SAGEInfo definition above.
             - concat: whether to concatenate during recursive iterations
@@ -65,7 +65,7 @@ class SupervisedGraphsage(models.SampleAndAggregate):
         self.num_classes = num_classes
         self.sigmoid_loss = sigmoid_loss
         self.dims = [(0 if features is None else features.shape[1]) + identity_dim]
-        self.dims.extend([layer_infos[i].output_dim for i in range(len(layer_infos))])
+        self.dims.extend([layer_infos[i].output_dim for i in range(len(layer_infos))]) # [特征长度, *每一层隐层的输出维度]
         self.batch_size = placeholders["batch_size"]
         self.placeholders = placeholders
         self.layer_infos = layer_infos
@@ -77,9 +77,9 @@ class SupervisedGraphsage(models.SampleAndAggregate):
 
     def build(self):
         samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
-        num_samples = [layer_info.num_samples for layer_info in self.layer_infos]
+        num_samples = [layer_info.num_samples for layer_info in self.layer_infos] # [*各层layer的聚合邻居的数量]
         self.outputs1, self.aggregators = self.aggregate(samples1, [self.features], self.dims, num_samples,
-                support_sizes1, concat=self.concat, model_size=self.model_size)
+                support_sizes1, concat=self.concat, model_size=self.model_size) # 为什么会返回两个对象？
         dim_mult = 2 if self.concat else 1
 
         self.outputs1 = tf.nn.l2_normalize(self.outputs1, 1)
@@ -93,6 +93,7 @@ class SupervisedGraphsage(models.SampleAndAggregate):
 
         self._loss()
         grads_and_vars = self.optimizer.compute_gradients(self.loss)
+        # 缓解梯度爆炸的问题，控制每一次更新的幅度，防止一次更新过多指向不理想的位置（撞南墙）
         clipped_grads_and_vars = [(tf.clip_by_value(grad, -5.0, 5.0) if grad is not None else None, var) 
                 for grad, var in grads_and_vars]
         self.grad, _ = clipped_grads_and_vars[0]

@@ -136,6 +136,7 @@ def train(train_data, test_data=None):
 
     context_pairs = train_data[3] if FLAGS.random_context else None
     placeholders = construct_placeholders(num_classes)
+    # checkpoint: adj信息全局共享？
     minibatch = NodeMinibatchIterator(G, 
             id_map,
             placeholders, 
