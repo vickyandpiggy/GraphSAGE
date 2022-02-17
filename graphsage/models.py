@@ -278,7 +278,7 @@ class SampleAndAggregate(GeneralizedModel):
             # layer_info是GNN信息的命名元组
             support_size *= layer_infos[t].num_samples # support_size连乘：每跳一个hop涉及邻居翻采样倍
             sampler = layer_infos[t].neigh_sampler
-            node = sampler((samples[k], layer_infos[t].num_samples))
+            node = sampler((samples[k], layer_infos[t].num_samples)) # UniformNeighborSampler: batch中的节点id, 采样数量
             samples.append(tf.reshape(node, [support_size * batch_size,])) # batch_size是训练的节点数量
             support_sizes.append(support_size)
         return samples, support_sizes

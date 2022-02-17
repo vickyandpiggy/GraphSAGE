@@ -136,7 +136,6 @@ def train(train_data, test_data=None):
 
     context_pairs = train_data[3] if FLAGS.random_context else None
     placeholders = construct_placeholders(num_classes)
-    # checkpoint: adj信息全局共享？
     minibatch = NodeMinibatchIterator(G, 
             id_map,
             placeholders, 
@@ -150,6 +149,7 @@ def train(train_data, test_data=None):
 
     if FLAGS.model == 'graphsage_mean':
         # Create model
+        # adj_info在sampler函数中作为变量存在，针对每一个batch调用sampler得到batch当中节点的邻接信息
         sampler = UniformNeighborSampler(adj_info)
         if FLAGS.samples_3 != 0:
             layer_infos = [SAGEInfo("node", sampler, FLAGS.samples_1, FLAGS.dim_1),
